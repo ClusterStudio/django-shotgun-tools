@@ -1,0 +1,5 @@
+django-tastypie==0.12.1
+python-dateutil==2.2
+python-mimeparse==0.1.4
+shotgun-api3==3.0.17
+six==1.8.0

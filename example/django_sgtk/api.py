@@ -4,7 +4,8 @@ import re
 from tastypie import fields
 from tastypie.resources import Resource, Bundle
 
-from shotgun_api3 import Shotgun
+#from shotgun_api3 import Shoitgun
+import ShotgunORM
 from .settings import SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY, \
     SHOTGUN_ENTITY_TYPES
 
@@ -19,7 +20,7 @@ class ShotgunEntity(object):
             self.__dict__['_data'] = initial
 
     def __getattr__(self, name):
-        return self._data.get(name, None)
+        return getattr(self._data, name)
 
     def __setattr__(self, name, value):
         self.__dict__['_data'][name] = value
@@ -73,14 +74,14 @@ class ShotgunEntityResource(Resource):
 
 
     class Meta:
-        resource_name = 'riak'
+        #resource_name = 'entity'
         object_class = ShotgunEntity
         #authorization = Authorization()
 
     @property
-    def shotgun(self):
+    def _sg(self):
         if not hasattr(self, "_shotgun"):
-            self._shotgun = Shotgun(
+            self._shotgun = ShotgunORM.Sg.Connection(
                 SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY)
         return self._shotgun
 
@@ -105,7 +106,7 @@ class ShotgunEntityResource(Resource):
         fields_list = request.GET.get('fields', [])
         if isinstance(fields_list, str):
             fields_list = [fields_list]
-        results = self._lazy_find(self._entity_type, fields=fields_list)
+        results = self._sg.find(self._entity_type, filters)
         return results
 
     def obj_get_list(self, bundle, **kwargs):
@@ -116,14 +117,14 @@ class ShotgunEntityResource(Resource):
         fields_list = request.GET.get('fields', [])
         if isinstance(fields_list, str):
             fields_list = [fields_list]
-        obj = self.shotgun.find_one(
-            self._entity_type, ["id", "is", kwargs['pk']], fields_list)
+        obj = self._sg.findOne(
+            self._entity_type, [["id", "is", kwargs['pk']]])
         return ShotgunEntity(initial=obj)
 
     def obj_create(self, bundle, **kwargs):
         bundle.obj = ShotgunEntity(initial=kwargs)
         bundle = self.full_hydrate(bundle)
-        new_message = self.shotgun.create(
+        new_message = self._sg.create(
             self._entity_type, bundle.obj.to_dict())
         return bundle
 
@@ -138,7 +139,8 @@ class ShotgunEntityResource(Resource):
             obj.delete()
 
     def obj_delete(self, bundle, **kwargs):
-        obj = shotgun.delete(self._entity_type, kwargs['pk'])
+        obj = self._sg.findOne(self._entity_type, [["id", "is", kwargs['pk']]])
+        obj.delete()
 
     def rollback(self, bundles):
         pass

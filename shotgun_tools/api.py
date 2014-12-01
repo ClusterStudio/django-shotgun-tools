@@ -4,10 +4,6 @@ import re
 from tastypie import fields
 from tastypie.resources import Resource, Bundle
 
-<<<<<<< HEAD
-#from shotgun_api3 import Shoitgun
-=======
->>>>>>> 3b90238a56f1c0c61df6003446d86c569b079845
 import ShotgunORM
 from .settings import SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY, \
     SHOTGUN_ENTITY_TYPES

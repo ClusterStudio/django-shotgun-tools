@@ -1,4 +1,7 @@
 *.py[co]
+build/*
+dist/*
+*.egg-info/*
 
 # Developer Stuff
 *.sublime*

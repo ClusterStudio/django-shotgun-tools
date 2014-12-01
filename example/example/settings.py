@@ -37,6 +37,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tastypie',
+    'shotgun_tools',
 )
 
 MIDDLEWARE_CLASSES = (

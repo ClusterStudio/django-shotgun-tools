@@ -1,6 +1,6 @@
 from django.conf.urls import patterns, include, url
 from django.contrib import admin
-from django_sgtk.api import sg_api
+from shotgun_tools.api import sg_api
 
 urlpatterns = patterns('',
     # Examples:

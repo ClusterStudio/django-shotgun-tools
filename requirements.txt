@@ -1,6 +1,6 @@
--e git+git@github.com:jonykalavera/python-shotgunorm.git@3b0a2b433030815631588ff709c8ffd3e9660476#egg=ShotgunORM-master
+-e git+https://jonykalavera:05082001@github.com/jonykalavera/python-shotgunorm.git#egg=python-ShotgunORM
 django-tastypie==0.12.1
 python-dateutil==2.2
 python-mimeparse==0.1.4
-shotgun-api3==3.0.17
+git+https://jonykalavera:05082001@github.com/shotgunsoftware/python-api.git#egg=python-api
 six==1.8.0

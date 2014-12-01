@@ -4,7 +4,7 @@ import re
 from tastypie import fields
 from tastypie.resources import Resource, Bundle
 
-from shotgun_api3 import Shotgun
+import ShotgunORM
 from .settings import SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY, \
     SHOTGUN_ENTITY_TYPES
 
@@ -19,13 +19,13 @@ class ShotgunEntity(object):
             self.__dict__['_data'] = initial
 
     def __getattr__(self, name):
-        return self._data.get(name, None)
+        return getattr(self._data, name)
 
     def __setattr__(self, name, value):
-        self.__dict__['_data'][name] = value
+        setattr(self.__dict__['_data'], name, value)
 
     def to_dict(self):
-        return self._data
+        return self._data.to_dict()
 
 
 class LazyFind(object):
@@ -80,7 +80,7 @@ class ShotgunEntityResource(Resource):
     @property
     def shotgun(self):
         if not hasattr(self, "_shotgun"):
-            self._shotgun = Shotgun(
+            self._shotgun = ShotgunORM.SgConnection(
                 SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY)
         return self._shotgun
 
@@ -105,7 +105,7 @@ class ShotgunEntityResource(Resource):
         fields_list = request.GET.get('fields', [])
         if isinstance(fields_list, str):
             fields_list = [fields_list]
-        results = self._lazy_find(self._entity_type, fields=fields_list)
+        results = self.shotgun.find(self._entity_type, [], fields_list)
         return results
 
     def obj_get_list(self, bundle, **kwargs):
@@ -113,11 +113,11 @@ class ShotgunEntityResource(Resource):
         return self.get_object_list(bundle.request)
 
     def obj_get(self, bundle, **kwargs):
-        fields_list = request.GET.get('fields', [])
+        fields_list = bundle.request.GET.get('fields', [])
         if isinstance(fields_list, str):
             fields_list = [fields_list]
-        obj = self.shotgun.find_one(
-            self._entity_type, ["id", "is", kwargs['pk']], fields_list)
+        obj = self.shotgun.findOne(
+            self._entity_type, [["id", "is", int(kwargs['pk'])]], fields_list)
         return ShotgunEntity(initial=obj)
 
     def obj_create(self, bundle, **kwargs):

@@ -5,13 +5,21 @@ from tastypie import fields
 from tastypie.resources import Resource, Bundle
 
 import ShotgunORM
-from .settings import SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY, \
+from .settings import SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY,\
     SHOTGUN_ENTITY_TYPES
 
 # We need a generic object to shove data in/get data from.
 # Shotgun generally just tosses around dictionaries, so we'll lightly
 # wrap that.
+
+
+def get_sg_connection():
+    return ShotgunORM.SgConnection(
+        SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY)
+
+
 class ShotgunEntity(object):
+
     def __init__(self, initial=None):
         self.__dict__['_data'] = {}
 
@@ -28,60 +36,21 @@ class ShotgunEntity(object):
         return self._data.to_dict()
 
 
-class LazyFind(object):
-    def __init__(self, shotgun, entity_type, filters, fields):
-        self.__dict__['_data'] = []
-        self._entity_type_type = entity_type
-        self.filters = filters
-        self.fields = fields
-        self.shotgun = shotgun
-
-    def __len__(self):
-        if not hasattr(self, '_summaries'):
-            self._summaries = self.shotgun.summarize(
-                entity_type=self._entity_type_type,
-                filters = [],
-                summary_fields=[{'field':'id', 'type':'count'}]
-            ).get('summaries')
-        return self._summaries.get('id')
-
-
-
-    def __getitem__(self, key):
-        if isinstance(key, slice):
-            start, stop, step = key.start, key.stop, key.step
-            limit = stop - start
-            page = start / limit
-            query = self.shotgun.find(
-                self._entity_type_type, self.filters, self.fields,
-                limit=limit, page=page)
-            return [ShotgunEntity(initial=data) for data in query]
-        else:
-            query = self.shotgun.find(
-                self._entity_type_type, self.filters, self.fields)
-            return ShotgunEntity(initial=query[key])
-
-    def to_list(self):
-        return self._data
-
-
 class ShotgunEntityResource(Resource):
     # Just like a Django ``Form`` or ``Model``, we're defining all the
     # fields we're going to handle with the API here.
     id = fields.IntegerField(attribute='id')
     entity_type = fields.CharField(attribute='type')
 
-
     class Meta:
-        #resource_name = 'entity'
+        # resource_name = 'entity'
         object_class = ShotgunEntity
-        #authorization = Authorization()
+        # authorization = Authorization()
 
     @property
     def _sg(self):
         if not hasattr(self, "_shotgun"):
-            self._shotgun = ShotgunORM.SgConnection(
-                SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY)
+            self._shotgun = get_sg_connection()
         return self._shotgun
 
     # The following methods will need overriding regardless of your
@@ -96,16 +65,11 @@ class ShotgunEntityResource(Resource):
 
         return kwargs
 
-    def _lazy_find(self, entity_type, filters=[], fields=[], ordering=None):
-
-
-        return LazyFind(self.shotgun, entity_type, filters, fields)
-
     def get_object_list(self, request):
         fields_list = request.GET.get('fields', [])
         if isinstance(fields_list, str):
             fields_list = [fields_list]
-        results = self.shotgun.find(self._entity_type, [], fields_list)
+        results = self._sg.find(self._entity_type, [], fields_list, lazy=True)
         return results
 
     def obj_get_list(self, bundle, **kwargs):
@@ -116,7 +80,7 @@ class ShotgunEntityResource(Resource):
         fields_list = bundle.request.GET.get('fields', [])
         if isinstance(fields_list, str):
             fields_list = [fields_list]
-        obj = self.shotgun.findOne(
+        obj = self._sg.findOne(
             self._entity_type, [["id", "is", int(kwargs['pk'])]], fields_list)
         return ShotgunEntity(initial=obj)
 
@@ -144,18 +108,31 @@ class ShotgunEntityResource(Resource):
     def rollback(self, bundles):
         pass
 
+
 def cammel_case_to_slug(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1).lower()
 
-def shotgun_entity_resource_factory(entity_type, schema=[]):
+
+def shotgun_entity_resource_factory(entity_type):
+    sg = get_sg_connection()
+    schema = sg.schema().entityInfo(entity_type)
+
     class EntityResource(ShotgunEntityResource):
         _entity_type = entity_type
 
         class Meta(ShotgunEntityResource.Meta):
             resource_name = cammel_case_to_slug(entity_type)
+    if schema:
+        for field_name, field_info in schema.fieldInfos().items():
+            if field_info.returnType() == ShotgunORM.SgField.RETURN_TYPE_TEXT:
+                setattr(
+                    EntityResource,
+                    field_name,
+                    fields.CharField(attribute=field_name))
 
     return EntityResource()
+
 
 def shotgun_rest_api_factory(entity_types=SHOTGUN_ENTITY_TYPES):
     from tastypie.api import Api

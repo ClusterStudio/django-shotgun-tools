@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Django Shotgun Tools</title>
+	<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.5/angular.min.js"></script>
+</head>
+<body ng-app="Shotgun">
+<style type="text/css">
+body{
+    font-family: Helvetica;
+}
+#versions li {
+    list-style: outside none none;
+    width: 232px;
+    height: 232px;
+    float: left;
+    padding: 3px;
+    margin: 3px;
+    border: 1px solid #CCC;
+}
+#versions img {
+    float: left;
+}
+#versions dl {
+    font-size: small;
+    float: left;
+    margin-left: 6px;
+    width: 220px;
+}
+#versions dd{
+    font-weight: bold;
+}
+</style>
+<h1>Django Shotgun Tools Example</h1>
+<div id="projects" ng-controller="ProjectsCtrl">
+	<h3>Projects</h3>
+	<button class="refresh" ng-click="load_projects($event)" ng-disabled="loading_projects">
+		{$ loading_projects ? 'loading...' : 'Refresh' $}</button>
+	<ul>
+		<li ng-repeat="project in projects">
+			<a href="?project={$ project.id $}">{$ project.name $}</a>
+		</li>
+	</ul>
+</div>
+<div id="versions">
+	<h2>{{versions_list.0.project.name}} : Versions</h2>
+	<ul>
+		{% for version in versions_list %}
+		<li>
+			<a href="{{version.sg_uploaded_movie.url}}">
+				<img src="{{version.image}}"
+					alt="{{version.code}}"
+					title="{{version.code}}">
+			</a>
+			<dl>
+				<dt>Code</dt>
+					<dd>{{version.code}}</dd>
+				<dt>Artist</dt>
+					<dd>{{version.created_by.name}}</dd>
+			</dl>
+		</li>
+		{% endfor %}
+	</ul>
+</div>
+<script type="text/javascript">
+	var app = angular.module("Shotgun", []).config(function($interpolateProvider) {
+	    $interpolateProvider.startSymbol('{$');
+	    $interpolateProvider.endSymbol('$}');
+	});
+
+	app.controller("ProjectsCtrl",[ '$scope', '$log', '$http', function($scope, $log, $http){
+		$scope.load_projects = function ($event){
+			$scope.projects = [];
+			$scope.loading_projects = true;
+
+			var responsePromise = $http.get("/api/v3/project/?format=json&limit=10");
+
+	        responsePromise.success(function(data, status, headers, config) {
+	            $scope.projects = data.objects;
+				$log.debug($scope.projects);
+				$scope.loading_projects = false;
+	        });
+	        responsePromise.error(function(data, status, headers, config) {
+	            alert("AJAX failed!");
+				$scope.loading_projects = false;
+	        });
+	    }
+	    $scope.loading_projects = false;
+	    $scope.load_projects();
+	}]);
+</script>
+</body>
+</html>

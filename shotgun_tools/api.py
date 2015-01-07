@@ -3,48 +3,22 @@ import re
 
 from tastypie import fields
 from tastypie.resources import Resource, Bundle
-
+from tastypie.exceptions import NotFound
 import ShotgunORM
-from .settings import SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY,\
-    SHOTGUN_ENTITY_TYPES
 
-# We need a generic object to shove data in/get data from.
-# Shotgun generally just tosses around dictionaries, so we'll lightly
-# wrap that.
-
-
-def get_sg_connection():
-    return ShotgunORM.SgConnection(
-        SHOTGUN_SERVER, SHOTGUN_SCRIPT_NAME, SHOTGUN_SCRIPT_KEY)
-
-
-class ShotgunEntity(object):
-
-    def __init__(self, initial=None):
-        self.__dict__['_data'] = {}
-
-        if hasattr(initial, 'items'):
-            self.__dict__['_data'] = initial
-
-    def __getattr__(self, name):
-        return getattr(self._data, name)
-
-    def __setattr__(self, name, value):
-        setattr(self.__dict__['_data'], name, value)
-
-    def to_dict(self):
-        return self._data.to_dict()
-
+from .settings import SHOTGUN_ENTITY_TYPES
+from .utils import get_sg_connection
 
 class ShotgunEntityResource(Resource):
     # Just like a Django ``Form`` or ``Model``, we're defining all the
     # fields we're going to handle with the API here.
     id = fields.IntegerField(attribute='id')
-    entity_type = fields.CharField(attribute='type')
+    #type = fields.CharField(attribute='type')
 
     class Meta:
+        pass
         # resource_name = 'entity'
-        object_class = ShotgunEntity
+        #object_class = ShotgunEntity
         # authorization = Authorization()
 
     @property
@@ -66,9 +40,7 @@ class ShotgunEntityResource(Resource):
         return kwargs
 
     def get_object_list(self, request):
-        fields_list = request.GET.get('fields', [])
-        if isinstance(fields_list, str):
-            fields_list = [fields_list]
+        fields_list = self._schema.fieldInfos().keys()
         results = self._sg.find(self._entity_type, [], fields_list, lazy=True)
         return results
 
@@ -77,12 +49,12 @@ class ShotgunEntityResource(Resource):
         return self.get_object_list(bundle.request)
 
     def obj_get(self, bundle, **kwargs):
-        fields_list = bundle.request.GET.get('fields', [])
-        if isinstance(fields_list, str):
-            fields_list = [fields_list]
+        fields_list = self._schema.fieldInfos().keys()
         obj = self._sg.findOne(
             self._entity_type, [["id", "is", int(kwargs['pk'])]], fields_list)
-        return ShotgunEntity(initial=obj)
+        if not obj or not obj.id:
+            raise NotFound("Object not found")
+        return obj
 
     def obj_create(self, bundle, **kwargs):
         bundle.obj = ShotgunEntity(initial=kwargs)
@@ -120,25 +92,74 @@ def shotgun_entity_resource_factory(entity_type):
 
     class EntityResource(ShotgunEntityResource):
         _entity_type = entity_type
+        _schema = schema
 
         class Meta(ShotgunEntityResource.Meta):
             resource_name = cammel_case_to_slug(entity_type)
+
     if schema:
         for field_name, field_info in schema.fieldInfos().items():
-            if field_info.returnType() == ShotgunORM.SgField.RETURN_TYPE_TEXT:
-                setattr(
-                    EntityResource,
-                    field_name,
-                    fields.CharField(attribute=field_name))
+            return_type = field_info.returnType()
+            resource_field = dehydrate_method = None
+            # RETURN_TYPE_CHECKBOX = 0
+            if return_type == ShotgunORM.SgField.RETURN_TYPE_CHECKBOX:
+                resource_field = fields.BooleanField(attribute=field_name, null=True)
+            # RETURN_TYPE_DATE = 3
+            elif return_type == ShotgunORM.SgField.RETURN_TYPE_DATE:
+                resource_field = fields.DateField(attribute=field_name, null=True)
+            # RETURN_TYPE_DATE_TIME = 4
+            elif return_type == ShotgunORM.SgField.RETURN_TYPE_DATE_TIME:
+                resource_field = fields.DateTimeField(attribute=field_name, null=True)
+            # RETURN_TYPE_FLOAT = 6
+            elif return_type ==ShotgunORM.SgField.RETURN_TYPE_FLOAT:
+                resource_field = fields.FloatField(attribute=field_name, null=True)
+            # RETURN_TYPE_INT = 8
+            elif return_type ==ShotgunORM.SgField.RETURN_TYPE_INT:
+                resource_field = fields.IntegerField(attribute=field_name, null=True)
+            # RETURN_TYPE_URL = 16
+            elif return_type == ShotgunORM.SgField.RETURN_TYPE_URL:
+                resource_field = fields.DictField(attribute=field_name, null=True)
+            # RETURN_TYPE_TEXT = 15
+            elif return_type == ShotgunORM.SgField.RETURN_TYPE_TEXT:
+                resource_field = fields.CharField(attribute=field_name, null=True)
+            # RETURN_TYPE_ENTITY = 5
+            elif return_type == ShotgunORM.SgField.RETURN_TYPE_ENTITY:
+                resource_field = fields.IntegerField(attribute=field_name, null=True)
+                #def dehydrate_method_factory(field_name):
+                #    def dehydrate_method(self, bundle):
+                #        # assert False, bundle.data.keys()
+                #        return bundle.data[field_name]
+                #    return dehydrate_method
+                #setattr(EntityResource, "dehydrate_%s" % field_name, dehydrate_method_factory(field_name))
+            # RETURN_TYPE_MULTI_ENTITY = 10
+            elif return_type == ShotgunORM.SgField.RETURN_TYPE_MULTI_ENTITY:
+                pass
+                #resource_field = fields.CharField(attribute=field_name, null=True)
+            # RETURN_TYPE_SERIALIZABLE = 11
+            elif return_type == ShotgunORM.SgField.RETURN_TYPE_SERIALIZABLE:
+                resource_field = fields.DictField(attribute=field_name, null=True)
+            # RETURN_TYPE_TAG_LIST = 14
+            elif return_type == ShotgunORM.SgField.RETURN_TYPE_TAG_LIST:
+                resource_field = fields.ListField(attribute=field_name, null=True)
+            # RETURN_TYPE_LIST = 9
+            # RETURN_TYPE_STATUS_LIST = 12
+            # RETURN_TYPE_SUMMARY = 13
+            # RETURN_TYPE_COLOR = 1
+            # RETURN_TYPE_COLOR2 = 2
+            # RETURN_TYPE_IMAGE = 7
+            # RETURN_TYPE_UNSUPPORTED = -1
+            elif return_type != ShotgunORM.SgField.RETURN_TYPE_UNSUPPORTED:
+                resource_field = fields.CharField(attribute=field_name, null=True)
 
-    return EntityResource()
+            if resource_field:
+                EntityResource.base_fields[field_name] = resource_field
+
+    return EntityResource
 
 
 def shotgun_rest_api_factory(entity_types=SHOTGUN_ENTITY_TYPES):
     from tastypie.api import Api
     sg_api = Api(api_name='v3')
     for entity_type in entity_types:
-        sg_api.register(shotgun_entity_resource_factory(entity_type))
+        sg_api.register(shotgun_entity_resource_factory(entity_type)())
     return sg_api
-
-sg_api = shotgun_rest_api_factory()

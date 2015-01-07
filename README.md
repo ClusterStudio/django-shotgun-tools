@@ -14,14 +14,14 @@ Project Goals
 Installation
 ------------
 
-´´´bash
+```bash
 pip install -e git+https://github.com/ClusterStudio/django-shotgun-tools#egg=django-shotgun-tools
-´´´
+```
 
 Quick Start
 -----------
 
-´´´python
+```python
 # settings.py
 
 INSTALLED_APPS = (
@@ -33,7 +33,7 @@ INSTALLED_APPS = (
 SHOTGUN_SERVER = "http://yoursite.shotgunstudio.com"
 SHOTGUN_SCRIPT_NAME = "django-sgtk"
 SHOTGUN_SCRIPT_KEY = "your-script-key"
-´´´
+```
 
 
 

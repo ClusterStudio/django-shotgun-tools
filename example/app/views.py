@@ -13,7 +13,7 @@ class IndexView(TemplateView):
 		versions = self.request.shotgun.find("Version",
 			[['project','is', {'type':'Project', 'id':project_id}]],
 			order=[{'field_name':'created_at', 'direction':'desc'}],
-			limit=10, lazy=True)
+			limit=10)
 		context['versions_list'] = versions
 		return context
 

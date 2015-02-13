@@ -41,7 +41,7 @@ class ShotgunEntityResource(Resource):
 
     def get_object_list(self, request):
         fields_list = self._schema.fieldInfos().keys()
-        results = self._sg.find(self._entity_type, [], fields_list, lazy=True)
+        results = self._sg.findLazy(self._entity_type, [], fields_list)
         return results
 
     def obj_get_list(self, bundle, **kwargs):
@@ -86,8 +86,9 @@ def cammel_case_to_slug(name):
     return re.sub('([a-z0-9])([A-Z])', r'\1-\2', s1).lower()
 
 
+sg = get_sg_connection()
+
 def shotgun_entity_resource_factory(entity_type):
-    sg = get_sg_connection()
     schema = sg.schema().entityInfo(entity_type)
 
     class EntityResource(ShotgunEntityResource):
@@ -98,7 +99,8 @@ def shotgun_entity_resource_factory(entity_type):
             resource_name = cammel_case_to_slug(entity_type)
 
     if schema:
-        for field_name, field_info in schema.fieldInfos().items():
+        for field_name in sg.defaultEntityQueryFields(entity_type):
+            field_info = schema.fieldInfos()[field_name]
             return_type = field_info.returnType()
             resource_field = dehydrate_method = None
             # RETURN_TYPE_CHECKBOX = 0

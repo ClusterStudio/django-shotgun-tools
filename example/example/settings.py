@@ -90,6 +90,6 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',
 )
 
-SHOTGUN_SERVER = "http://shotgun.clusterstudio.com"
+SHOTGUN_SERVER = "https://clusterstudio.shotgunstudio.com"
 SHOTGUN_SCRIPT_NAME = "django-sgtk"
 SHOTGUN_SCRIPT_KEY = "bd160ca4b18a0a56fbb1a201e5dbb61e6fa801dd534152df0cc632b9d0a39b01"

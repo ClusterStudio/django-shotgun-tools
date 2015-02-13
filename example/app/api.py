@@ -8,7 +8,8 @@ class ProjectResource(ProjectResourceBase):
     class Meta(ProjectResourceBase.Meta):
         ordering = ['id']
         filtering = {
-            "status": ('exact',),
+            "status": ('in',),
+            "name": ('contains',),
         }
 
 NoteResource = shotgun_entity_resource_factory("Note")

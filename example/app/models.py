@@ -6,7 +6,8 @@ ShotgunORM.SgSchema.registerDefaultQueryFields(
   sgQueryTemplates=['default'],
   sgFields=[
     'name',
-    'sg_status'
+    'sg_status',
+    'sg_code',
   ]
 )
 

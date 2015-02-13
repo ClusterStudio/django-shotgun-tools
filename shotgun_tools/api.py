@@ -143,10 +143,10 @@ class ShotgunEntityResource(Resource):
             if len(filter_bits) and filter_bits[-1] in SHOTGUN_QUERY_TERMS:
                 filter_type = filter_bits.pop()
 
-            value = SHOTGUN_QUERY_TERMS[filter_type]['trans'](value)
 
             #lookup_bits = self.check_filtering(field_name, filter_type, filter_bits)
             #value = self.filter_value_to_python(value, field_name, filters, filter_expr, filter_type)
+            value = SHOTGUN_QUERY_TERMS[filter_type]['trans'](value)
 
             term = [field_name, filter_type, value]
             qs_filters.append(term)

@@ -34,8 +34,10 @@ body{
 <h1>Django Shotgun Tools Example</h1>
 <div id="projects" ng-controller="ProjectsCtrl">
 	<h3>Projects</h3>
+	<input class="search_field" ng-model="name" type="text" name="project_name"
+		ng-keypress="load_projects($event)"/>
 	<button class="refresh" ng-click="load_projects($event)" ng-disabled="loading_projects">
-		{$ loading_projects ? 'loading...' : 'Refresh' $}</button>
+		{$ loading_projects ? 'loading...' : 'Search' $}</button>
 	<ul>
 		<li ng-repeat="project in projects">
 			<a href="?project={$ project.id $}">{$ project.name $}</a>
@@ -68,22 +70,50 @@ body{
 	    $interpolateProvider.endSymbol('$}');
 	});
 
-	app.controller("ProjectsCtrl",[ '$scope', '$log', '$http', function($scope, $log, $http){
+	app.controller("ProjectsCtrl",[ '$scope', '$log', '$http', '$q', function($scope, $log, $http, $q){
 		$scope.load_projects = function ($event){
-			$scope.projects = [];
+			if(!angular.isUndefined($event) && !angular.isUndefined($event.keyCode) && (!$event.keyCode == 13 || $scope.name.length < 3 )){
+				$log.debug("Out")
+				return
+			}
+			// $scope.projects = [];
 			$scope.loading_projects = true;
 
-			var responsePromise = $http.get("/api/v3/project/?format=json&limit=20&order_by=-id&sg_status__in=Active|Closed");
+			var url ="/api/v3/project/?format=json&limit=20&order_by=code&sg_status__in=Active|Closed"
 
-	        responsePromise.success(function(data, status, headers, config) {
+			if(!angular.isUndefined($scope.name) && $scope.name != '' && $scope.name.length > 3){
+				api_url += "&name__contains="+$scope.name
+			}
+			var canceler = $q.defer();
+			var request = $http.get({url:api_url, timeout:canceler.promise});
+
+			var promise = request.then(
+				function( response ) {
+					return( response.data );
+				},
+				function( response ) {
+					return( $q.reject( "Something went wrong" ) );
+				}
+			);
+
+	        request.success(function(data, status, headers, config) {
 	            $scope.projects = data.objects;
 				$log.debug($scope.projects);
 				$scope.loading_projects = false;
 	        });
-	        responsePromise.error(function(data, status, headers, config) {
-	            alert("AJAX failed!");
-				$scope.loading_projects = false;
+	        request.error(function(data, status, headers, config) {
+	        	$log.error(data, status, headers, config);
+				//$scope.loading_projects = false;
 	        });
+			promise.abort = function() {
+				canceler.resolve();
+			};
+
+		    promise.finally(function() {
+				console.info( "Cleaning up object references." );
+				responsePromise.abort = angular.noop;
+				canceler  = responsePromise = null;
+			});
 	    }
 	    $scope.loading_projects = false;
 	    $scope.load_projects();

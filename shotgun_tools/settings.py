@@ -33,7 +33,39 @@ SHOTGUN_ENTITY_TYPES.extend(["CustomEntity%02d"%x for x in range(1, 31)])
 SHOTGUN_ENTITY_TYPES.extend(["CustomNonProjectEntity%02d"%x for x in range(1, 16)])
 SHOTGUN_ENTITY_TYPES.extend(["CustomThreadedEntity%02d"%x for x in range(1, 6)])
 
-SHOTGUN_QUERY_TERMS = ["is",]
+
+def term(trans=None, multi=False):
+    if trans is None:
+        trans = lambda x: x
+    return {
+        'trans':trans,
+        'multi':multi,
+    }
+
+SHOTGUN_QUERY_TERMS = {
+    'is': term(),
+    'is_not': term(),
+    'less_than': term(),
+    'greater_than': term(),
+    'contains': term(),
+    'not_contains': term(),
+    'starts_with': term(unicode),
+    'ends_with': term(unicode),
+    'between': term(lambda x: x.split('|'), multi=True),
+    'not_between': term(lambda x: x.split('|'), multi=True),
+    'in_last': term(),
+    'in_next': term(),
+    'in': term(lambda x: x.split('|'), multi=True),
+    'type_is': term(unicode),
+    'type_is_not': term(unicode),
+    'in_calendar_day': term(int),
+    'in_calendar_week': term(int),
+    'in_calendar_month': term(int),
+    'name_contains': term(unicode),
+    'name_not_contains': term(unicode),
+    'name_starts_with': term(unicode),
+    'name_ends_with': term(unicode),
+}
 
 SHOTGUN_AUTO_REGISTER_SG_ENTITY_BASE_CLASS = getattr(settings, "SHOTGUN_AUTO_REGISTER_SG_ENTITY_BASE_CLASS", True)
 SHOTGUN_LOOKUP_SEP = getattr(settings, "SHOTGUN_LOOKUP_SEP", "__")

@@ -9,6 +9,10 @@ setup(
     name='shotgun_tools',
     packages=find_packages(),
     include_package_data=True,
+    dependency_links=[
+        "https://github.com/shotgunsoftware/python-api/tarball/master#egg=shotgun_api3",
+        "https://github.com/ClusterStudio/python-shotgunorm/tarball/lazy_results#egg=ShotgunORM"
+    ],
     install_requires=[
         'shotgun_api3',
         'ShotgunORM',

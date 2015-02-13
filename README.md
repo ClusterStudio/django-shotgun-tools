@@ -9,7 +9,7 @@ Project Goals
 * Models with ShotgunORM ... Alpha
 * RestAPI: Tasypie custom resources ... Alpha
 * Authentication Backend ... Alpha
-* ShotgunEventDaemon Integration ... Pending
+* ShotgunEventDaemon Integration ... Pre-Alpha
 
 Installation
 ------------

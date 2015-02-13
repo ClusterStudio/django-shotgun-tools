@@ -6,7 +6,7 @@ from tastypie.resources import Resource, Bundle
 from tastypie.exceptions import NotFound
 import ShotgunORM
 
-from .settings import SHOTGUN_ENTITY_TYPES
+from .settings import SHOTGUN_ENTITY_TYPES, SHOTGUN_QUERY_TERMS, SHOTGUN_LOOKUP_SEP
 from .utils import get_sg_connection
 
 class ShotgunEntityResource(Resource):
@@ -45,8 +45,19 @@ class ShotgunEntityResource(Resource):
         return results
 
     def obj_get_list(self, bundle, **kwargs):
-        # Filtering disabled for brevity...
-        return self.get_object_list(bundle.request)
+        filters = {}
+        if hasattr(bundle.request, 'GET'):
+            # Grab a mutable copy.
+            filters = bundle.request.GET.copy()
+            # Update with the provided kwargs.
+        filters.update(kwargs)
+        applicable_filters = self.build_filters(filters=filters)
+        try:
+            objects = self.apply_filters(bundle.request, applicable_filters)
+            return self.authorized_read_list(objects, bundle)
+        except ValueError:
+            raise BadRequest("Invalid resource lookup data provided (mismatched type).")
+            return self.get_object_list(bundle.request)
 
     def obj_get(self, bundle, **kwargs):
         fields_list = self._schema.fieldInfos().keys()
@@ -79,6 +90,74 @@ class ShotgunEntityResource(Resource):
 
     def rollback(self, bundles):
         pass
+
+    def apply_sorting(self, obj_list, options=None):
+        order_arg = []
+        for option in options.get('order_by', '').split(','):
+            if option:
+                mode = 'asc'
+                if option.startswith('-'):
+                    option = option[1:]
+                    mode = 'desc'
+                order_arg.append({
+                    'field_name':option,
+                    'direction':mode,
+                })
+        obj_list._sg_find_args['order'] = order_arg
+        # assert False, order_arg
+        return obj_list
+
+    def build_filters(self, filters=None):
+        """
+        Given a dictionary of filters, create the necessary ORM-level filters.
+
+        Keys should be resource fields, **NOT** model fields.
+
+        Valid values are either a list of Django filter types (i.e.
+        ``['startswith', 'exact', 'lte']``), the ``ALL`` constant or the
+        ``ALL_WITH_RELATIONS`` constant.
+        """
+        # At the declarative level:
+        #     filtering = {
+        #         'resource_field_name': ['exact', 'startswith', 'endswith', 'contains'],
+        #         'resource_field_name_2': ['exact', 'gt', 'gte', 'lt', 'lte', 'range'],
+        #         'resource_field_name_3': ALL,
+        #         'resource_field_name_4': ALL_WITH_RELATIONS,
+        #         ...
+        #     }
+        # Accepts the filters as a dict. None by default, meaning no filters.
+        if filters is None:
+            filters = {}
+
+        qs_filters = []
+
+        for filter_expr, value in filters.items():
+            filter_bits = filter_expr.split(SHOTGUN_LOOKUP_SEP)
+            field_name = filter_bits.pop(0)
+            filter_type = 'is'
+
+            if not field_name in self.fields:
+                # It's not a field we know about. Move along citizen.
+                continue
+
+            if len(filter_bits) and filter_bits[-1] in SHOTGUN_QUERY_TERMS:
+                filter_type = filter_bits.pop()
+
+            #lookup_bits = self.check_filtering(field_name, filter_type, filter_bits)
+            #value = self.filter_value_to_python(value, field_name, filters, filter_expr, filter_type)
+
+            term = [field_name, filter_type, value]
+            qs_filters.append(term)
+        return qs_filters
+
+    def apply_filters(self, request, applicable_filters):
+        order_arg = []
+        obj_list = self.get_object_list(request)
+        #assert False, applicable_filters
+        obj_list.filters = applicable_filters
+        obj_list._sg_find_args['filters'] = applicable_filters
+        return obj_list
+
 
 
 def cammel_case_to_slug(name):

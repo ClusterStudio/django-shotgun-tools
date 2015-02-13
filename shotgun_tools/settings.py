@@ -33,4 +33,7 @@ SHOTGUN_ENTITY_TYPES.extend(["CustomEntity%02d"%x for x in range(1, 31)])
 SHOTGUN_ENTITY_TYPES.extend(["CustomNonProjectEntity%02d"%x for x in range(1, 16)])
 SHOTGUN_ENTITY_TYPES.extend(["CustomThreadedEntity%02d"%x for x in range(1, 6)])
 
+SHOTGUN_QUERY_TERMS = ["is",]
+
 SHOTGUN_AUTO_REGISTER_SG_ENTITY_BASE_CLASS = getattr(settings, "SHOTGUN_AUTO_REGISTER_SG_ENTITY_BASE_CLASS", True)
+SHOTGUN_LOOKUP_SEP = getattr(settings, "SHOTGUN_LOOKUP_SEP", "__")

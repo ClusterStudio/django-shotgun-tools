@@ -73,7 +73,7 @@ body{
 			$scope.projects = [];
 			$scope.loading_projects = true;
 
-			var responsePromise = $http.get("/api/v3/project/?format=json&limit=10");
+			var responsePromise = $http.get("/api/v3/project/?format=json&limit=20&order_by=-id&sg_status=Active");
 
 	        responsePromise.success(function(data, status, headers, config) {
 	            $scope.projects = data.objects;
